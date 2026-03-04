@@ -10,7 +10,6 @@ import { ChatDetail } from './pages/ChatDetail';
 import { UsageInstructionsModal } from './components/UsageInstructionsModal';
 import { AnimatePresence, motion } from 'motion/react';
 import { User, BookItem, ChatSession, ChatMessage } from './data/mockData';
-import { api } from './services/api';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
@@ -36,13 +35,15 @@ export default function App() {
     // Fetch initial data
     const fetchData = async () => {
       try {
-        const data = await api.init();
-        setUsers(data.users);
-        setBooks(data.books);
-        setChats(data.chats);
-        setMessages(data.messages);
-        if (data.users['me']) {
-          setWishlist(data.users['me'].wishlist);
+        // For demo purposes, using mock data directly
+        // In a real app, this would call api.init()
+        const { users: mockUsers, books: mockBooks, chats: mockChats, messages: mockMessages } = await import('./data/mockData');
+        setUsers(mockUsers);
+        setBooks(mockBooks);
+        setChats(mockChats);
+        setMessages(mockMessages);
+        if (mockUsers['me']) {
+          setWishlist(mockUsers['me'].wishlist);
         }
       } catch (error) {
         console.error("Failed to fetch initial data:", error);
@@ -76,7 +77,8 @@ export default function App() {
     });
     
     try {
-      await api.toggleWishlist(bookId);
+      // In a real app, this would call api.toggleWishlist(bookId);
+      console.log('Toggling wishlist for book:', bookId);
     } catch (error) {
       console.error("Failed to toggle wishlist:", error);
       // Revert if needed (omitted for brevity)
@@ -87,21 +89,24 @@ export default function App() {
     if (sellerId === 'me') return;
 
     try {
-      const chat = await api.startChat(sellerId);
+      // In a real app, this would call api.startChat(sellerId);
+      const existingChat = chats.find(c => c.participants.includes(sellerId) && c.participants.includes('me'));
       
-      // Update local state if it's a new chat
-      setChats(prev => {
-        if (!prev.find(c => c.id === chat.id)) {
-          return [...prev, chat];
-        }
-        return prev;
-      });
-      
-      if (!messages[chat.id]) {
-        setMessages(prev => ({ ...prev, [chat.id]: [] }));
+      if (existingChat) {
+        setSelectedChatId(existingChat.id);
+      } else {
+        const newChat: ChatSession = {
+          id: `c${Date.now()}`,
+          participants: ['me', sellerId],
+          lastMessage: '',
+          lastMessageTime: 'Now',
+          unreadCount: 0
+        };
+        setChats(prev => [...prev, newChat]);
+        setMessages(prev => ({ ...prev, [newChat.id]: [] }));
+        setSelectedChatId(newChat.id);
       }
-
-      setSelectedChatId(chat.id);
+      
       setSelectedBookId(null);
       setViewingUserId(null);
       setActiveTab('messages');
@@ -132,12 +137,8 @@ export default function App() {
     ));
 
     try {
-      const savedMessage = await api.sendMessage(chatId, text, 'me');
-      // Replace temp message with real one
-      setMessages(prev => ({
-        ...prev,
-        [chatId]: prev[chatId].map(m => m.id === tempId ? savedMessage : m)
-      }));
+      // In a real app, this would call api.sendMessage(chatId, text, 'me');
+      console.log('Sending message:', text, 'to chat:', chatId);
     } catch (error) {
       console.error("Failed to send message:", error);
     }
@@ -147,7 +148,12 @@ export default function App() {
     setEvaluatedBookIds(prev => [...prev, bookId]);
     
     try {
-      const updatedSeller = await api.evaluateUser(sellerId, isGood);
+      // In a real app, this would call api.evaluateUser(sellerId, isGood);
+      const updatedSeller = {
+        ...users[sellerId],
+        rating: isGood ? users[sellerId].rating + 1 : users[sellerId].rating - 1,
+        trustScore: isGood ? users[sellerId].trustScore : Math.max(0, users[sellerId].trustScore - 10)
+      };
       
       setUsers(prevUsers => ({
         ...prevUsers,
@@ -184,23 +190,15 @@ export default function App() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-slate-950 text-white">
-        Loading...
-      </div>
-    );
-  }
-
   const handlePostBook = async (book: BookItem) => {
     try {
-      const newBook = await api.postBook(book);
-      setBooks(prev => [newBook, ...prev]);
+      // In a real app, this would call api.postBook(book);
+      setBooks(prev => [book, ...prev]);
       setUsers(prev => ({
         ...prev,
-        [newBook.sellerId]: {
-          ...prev[newBook.sellerId],
-          listings: [...prev[newBook.sellerId].listings, newBook.id]
+        [book.sellerId]: {
+          ...prev[book.sellerId],
+          listings: [...prev[book.sellerId].listings, book.id]
         }
       }));
       setActiveTab('home');
@@ -208,6 +206,14 @@ export default function App() {
       console.error("Failed to post book:", error);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-slate-950 text-white">
+        Loading...
+      </div>
+    );
+  }
 
   const renderContent = () => {
     if (selectedChatId) {
@@ -247,6 +253,11 @@ export default function App() {
     }
 
     if (selectedBookId) {
+      const book = books.find(b => b.id === selectedBookId);
+      if (!book) return null;
+      const seller = users[book.sellerId];
+      if (!seller) return null;
+
       return (
         <BookDetail 
           id={selectedBookId} 
@@ -257,8 +268,8 @@ export default function App() {
           onToggleWishlist={() => handleToggleWishlist(selectedBookId)}
           onEvaluate={(sellerId, isGood) => handleEvaluate(sellerId, selectedBookId, isGood)}
           isEvaluated={evaluatedBookIds.includes(selectedBookId)}
-          book={books.find(b => b.id === selectedBookId)!}
-          seller={users[books.find(b => b.id === selectedBookId)!.sellerId]}
+          book={book}
+          seller={seller}
         />
       );
     }
@@ -307,7 +318,7 @@ export default function App() {
           />
         );
       default:
-        return <Home onBookClick={handleBookClick} books={books} />;
+        return <Home onBookClick={handleBookClick} books={books} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} onShowInstructions={() => setShowInstructions(true)} />;
     }
   };
 

@@ -1,37 +1,3 @@
-import { 
-  Book, 
-  BookOpen, 
-  ShoppingBag, 
-  MessageCircle, 
-  User, 
-  Search, 
-  ScanLine, 
-  Bell, 
-  Grid, 
-  List, 
-  Filter, 
-  ChevronLeft, 
-  MoreVertical, 
-  Heart, 
-  Share, 
-  CheckCircle2, 
-  Star, 
-  MapPin, 
-  Truck, 
-  Send, 
-  Plus, 
-  Home, 
-  LayoutGrid, 
-  TrendingUp, 
-  Wallet, 
-  Settings, 
-  ShieldCheck, 
-  Award, 
-  ChevronRight,
-  Camera,
-  X
-} from 'lucide-react';
-
 export interface User {
   id: string;
   name: string;
